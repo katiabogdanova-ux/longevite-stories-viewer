@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Longévité Paris — Stories Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:          #F3EEE4;
+  --paper:          #FAF6EE;
+  --burgundy:       #6B1F26;
+  --burgundy-deep:  #4A1319;
+  --ink:            #1C1917;
+  --graphite:       #3B3530;
+  --muted:          #5C544D;
+  --hairline:       #CFC4B3;
+  --gold-soft:      #D9B978;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --sans:  'DM Sans', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: var(--sans);
+  background: var(--ink);
+  color: var(--cream);
+  overflow: hidden;
+}
+
+/* ─── LAYOUT ─── */
+.app {
+  display: grid;
+  grid-template-rows: 56px 44px 1fr 40px;
+  height: 100vh;
+}
+
+/* ─── HEADER ─── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.brand-mark {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.9;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.counter {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: rgba(255,255,255,0.4);
+}
+.kbd-hint {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.2);
+  text-transform: uppercase;
+}
+
+/* ─── TABS ─── */
+.tabs {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  padding: 0 24px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.28);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s;
+  user-select: none;
+}
+.tab:hover { color: rgba(255,255,255,0.65); }
+.tab.active {
+  color: var(--cream);
+  border-bottom-color: var(--burgundy);
+}
+.tab-count {
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.5;
+}
+
+/* ─── VIEWER ─── */
+.viewer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 24px 40px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─── NAV BUTTONS ─── */
+.nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.28);
+  color: var(--cream);
+}
+.nav-btn:disabled {
+  opacity: 0.15;
+  cursor: default;
+}
+
+/* ─── STORY FRAME ─── */
+.story-wrap {
+  position: relative;
+  /* 1080 × 1920 = 9:16 */
+  aspect-ratio: 9 / 16;
+  max-height: calc(100vh - 180px);
+  max-width: calc((100vh - 180px) * 9 / 16);
+  background: var(--burgundy-deep);
+  overflow: hidden;
+}
+
+.story-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.18s ease;
+}
+.story-img.loading { opacity: 0; }
+
+/* Progress segments at top of frame */
+.progress {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+  pointer-events: none;
+}
+.seg {
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.25);
+  transition: background 0.15s;
+}
+.seg.done  { background: rgba(255,255,255,0.65); }
+.seg.active { background: rgba(255,255,255,0.95); }
+
+/* ─── STATUS BAR ─── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 40px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.group-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.22);
+}
+.dot-sep { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+
+/* ─── TRANSITION ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.story-wrap.anim { animation: fadeIn 0.2s ease forwards; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <span class="brand-mark">Longévité Paris</span>
+    <div class="header-right">
+      <span class="kbd-hint">← → naviguer · 1–5 onglets</span>
+      <span class="counter" id="counter">1 / 1</span>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="tabs" id="tabs">
+    <!-- injected by JS -->
+  </nav>
+
+  <!-- VIEWER -->
+  <main class="viewer">
+    <button class="nav-btn" id="btnPrev" onclick="nav(-1)" title="Précédent (←)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <div class="story-wrap" id="storyWrap">
+      <div class="progress" id="progress"></div>
+      <img class="story-img" id="storyImg" src="" alt="" onload="onImgLoad()" onerror="onImgError()">
+    </div>
+
+    <button class="nav-btn" id="btnNext" onclick="nav(1)" title="Suivant (→)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </main>
+
+  <!-- STATUS BAR -->
+  <footer class="status-bar">
+    <span class="group-label" id="groupLabel"></span>
+    <span class="dot-sep"></span>
+    <span class="group-label" id="fileLabel"></span>
+  </footer>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  DATA
+// ─────────────────────────────────────────────────────────
+const BASE = 'Stories/';
+
+const GROUPS = [
+  {
+    label: 'Funnel narratif',
+    slug:  'S01 → S08 — Hook · Mécanisme · Rupture · Méthode · Preuve · CTA',
+    images: [
+      '01_Funnel-Narratif/S01_hook.jpg',
+      '01_Funnel-Narratif/S01_hook_v2.jpg',
+      '01_Funnel-Narratif/S01_hook_v3.jpg',
+      '01_Funnel-Narratif/S01_hook_v4.jpg',
+      '01_Funnel-Narratif/S01_hook_v5.jpg',
+      '01_Funnel-Narratif/S02_mecanisme.jpg',
+      '01_Funnel-Narratif/S02_mecanisme_v2.jpg',
+      '01_Funnel-Narratif/S02_mecanisme_v3.jpg',
+      '01_Funnel-Narratif/S03_cercle-vicieux.jpg',
+      '01_Funnel-Narratif/S03_journee-type.jpg',
+      '01_Funnel-Narratif/S03_le-prix.jpg',
+      '01_Funnel-Narratif/S03_quotidien.jpg',
+      '01_Funnel-Narratif/S04_rupture.jpg',
+      '01_Funnel-Narratif/S04_rupture_v2.jpg',
+      '01_Funnel-Narratif/S04_rupture_v3.jpg',
+      '01_Funnel-Narratif/S05_shift.jpg',
+      '01_Funnel-Narratif/S05_shift_v2.jpg',
+      '01_Funnel-Narratif/S05_shift_v3.jpg',
+      '01_Funnel-Narratif/S06_methode.jpg',
+      '01_Funnel-Narratif/S06_methode_v2.jpg',
+      '01_Funnel-Narratif/S06_methode_v3.jpg',
+      '01_Funnel-Narratif/S07_preuve.jpg',
+      '01_Funnel-Narratif/S07_preuve_v2.jpg',
+      '01_Funnel-Narratif/S07_preuve_v3.jpg',
+      '01_Funnel-Narratif/S07_preuve_v4.jpg',
+      '01_Funnel-Narratif/S08_cta.jpg',
+      '01_Funnel-Narratif/S08_cta_v2.jpg',
+      '01_Funnel-Narratif/S08_cta_v3.jpg',
+      '01_Funnel-Narratif/S08_cta_v4.jpg',
+    ]
+  },
+  {
+    label: 'Stories margin',
+    slug:  '8 stories — bloc complet',
+    images: [
+      '02_Stories-Margin/story-11_margin.jpg',
+      '02_Stories-Margin/story-12_margin.jpg',
+      '02_Stories-Margin/story-13_margin.jpg',
+      '02_Stories-Margin/story-14_margin.jpg',
+      '02_Stories-Margin/story-15_margin.jpg',
+      '02_Stories-Margin/story-16_margin.jpg',
+      '02_Stories-Margin/story-17_margin.jpg',
+      '02_Stories-Margin/story-18_margin.jpg',
+    ]
+  },
+  {
+    label: 'Value tips',
+    slug:  'V01–V10 — conseils éducatifs',
+    images: [
+      '03_Value-Tips/V01_gestion-des-ecarts.jpg',
+      '03_Value-Tips/V02_faq-fringales.jpg',
+      '03_Value-Tips/V03_legume-saison.jpg',
+      '03_Value-Tips/V04_routine-matin.jpg',
+      '03_Value-Tips/V05_stress-glycemie.jpg',
+      '03_Value-Tips/V06_les-fibres.jpg',
+      '03_Value-Tips/V07_reminder-rdv.jpg',
+      '03_Value-Tips/V08_collation-hiver.jpg',
+      '03_Value-Tips/V09_motivation-hiver.jpg',
+      '03_Value-Tips/V10_erreur-frequente.jpg',
+    ]
+  },
+  {
+    label: 'Community',
+    slug:  'V21–V30 — engagement & saisonnier',
+    images: [
+      '04_Value-Community/V21_transformation-mentale.jpg',
+      '04_Value-Community/V22_liste-courses.jpg',
+      '04_Value-Community/V23_journee-type.jpg',
+      '04_Value-Community/V24_quiz.jpg',
+      '04_Value-Community/V25_legumes-janvier.jpg',
+      '04_Value-Community/V26_plateau.jpg',
+      '04_Value-Community/V27_compliments.jpg',
+      '04_Value-Community/V28_epices.jpg',
+      '04_Value-Community/V29_objectif-semaine.jpg',
+      '04_Value-Community/V30_merci-communaute.jpg',
+    ]
+  },
+  {
+    label: 'Série V31–V50',
+    slug:  'V31–V50 — à identifier',
+    images: [
+      '05_Value-Series/V31.jpg',
+      '05_Value-Series/V32.jpg',
+      '05_Value-Series/V33.jpg',
+      '05_Value-Series/V34.jpg',
+      '05_Value-Series/V35.jpg',
+      '05_Value-Series/V36.jpg',
+      '05_Value-Series/V37.jpg',
+      '05_Value-Series/V38.jpg',
+      '05_Value-Series/V39.jpg',
+      '05_Value-Series/V40.jpg',
+      '05_Value-Series/V41.jpg',
+      '05_Value-Series/V42.jpg',
+      '05_Value-Series/V43.png',  // png only
+      '05_Value-Series/V44.png',  // png only
+      '05_Value-Series/V45.jpg',
+      '05_Value-Series/V46.jpg',
+      '05_Value-Series/V47.jpg',
+      '05_Value-Series/V48.jpg',
+      '05_Value-Series/V49.jpg',
+      '05_Value-Series/V50.png',  // png only
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────
+let gIdx = 0;   // active group
+let sIdx = 0;   // active story within group
+
+// ─────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────
+(function init() {
+  const tabsEl = document.getElementById('tabs');
+  GROUPS.forEach((g, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (i === 0 ? ' active' : '');
+    tab.innerHTML = `${g.label} <span class="tab-count">${g.images.length}</span>`;
+    tab.addEventListener('click', () => switchGroup(i));
+    tabsEl.appendChild(tab);
+  });
+  render();
+})();
+
+// ─────────────────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────────────────
+function switchGroup(i) {
+  gIdx = i;
+  sIdx = 0;
+  document.querySelectorAll('.tab').forEach((t, idx) => t.classList.toggle('active', idx === i));
+  render();
+}
+
+function nav(dir) {
+  const total = GROUPS[gIdx].images.length;
+  sIdx = Math.max(0, Math.min(total - 1, sIdx + dir));
+  render();
+}
+
+// ─────────────────────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────────────────────
+function render() {
+  const group  = GROUPS[gIdx];
+  const total  = group.images.length;
+  const imgRel = group.images[sIdx];
+
+  // Image
+  const imgEl = document.getElementById('storyImg');
+  imgEl.classList.add('loading');
+  imgEl.src = BASE + imgRel;
+
+  // Counter
+  document.getElementById('counter').textContent = `${sIdx + 1} / ${total}`;
+
+  // Buttons
+  document.getElementById('btnPrev').disabled = (sIdx === 0);
+  document.getElementById('btnNext').disabled = (sIdx === total - 1);
+
+  // Status bar
+  document.getElementById('groupLabel').textContent = group.label.toUpperCase();
+  const fname = imgRel.split('/').pop().replace(/\.(jpg|png)$/, '').replace(/_/g, ' ');
+  document.getElementById('fileLabel').textContent = fname;
+
+  // Progress segments (max 20 visible)
+  const progressEl = document.getElementById('progress');
+  progressEl.innerHTML = '';
+  const maxDots = Math.min(total, 20);
+  // if total > 20, scale current position into the 20-dot range
+  const activeDot = total > 20 ? Math.round((sIdx / (total - 1)) * 19) : sIdx;
+  for (let i = 0; i < maxDots; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (i === activeDot ? ' active' : i < activeDot ? ' done' : '');
+    progressEl.appendChild(seg);
+  }
+
+  // Animate frame
+  const wrap = document.getElementById('storyWrap');
+  wrap.classList.remove('anim');
+  void wrap.offsetWidth; // force reflow
+  wrap.classList.add('anim');
+}
+
+function onImgLoad() {
+  document.getElementById('storyImg').classList.remove('loading');
+}
+function onImgError() {
+  document.getElementById('storyImg').classList.remove('loading');
+}
+
+// ─────────────────────────────────────────────────────────
+//  KEYBOARD
+// ─────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  { nav(1);  return; }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    { nav(-1); return; }
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 5) switchGroup(n - 1);
+});
+</script>
+</body>
+</html>
